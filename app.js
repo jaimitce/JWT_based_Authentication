@@ -3,6 +3,7 @@ const app = express()
 const createError = require("http-errors")
 const dotenv = require('dotenv');
 const authRouter = require('./Routes/auth.routes')
+const {verifyAccessToken} = require('./helper/jwt_helper')
 
 const morgan = require('morgan')
 //read all config from .env file.
@@ -18,6 +19,12 @@ app.use(express.json());
 const mongodb = require("./database/mongodb")
 
 app.use('/auth', authRouter);
+
+app.post("/home", verifyAccessToken, (req, res)=>{
+    // console.log("Auth Token : ")
+    // console.log(req.headers["authorization"])
+    res.send({msg: "home page"})
+})
 
 // Not found route
 //This middleware will be used if no route match with our server.
