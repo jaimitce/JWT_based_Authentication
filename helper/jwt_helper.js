@@ -1,5 +1,6 @@
 const createHttpError = require("http-errors")
 const jwt = require("jsonwebtoken")
+const {redisClient} = require("../database/redisdb")
 
 module.exports={
     signInAccessToken : async(userId)=>{
@@ -11,11 +12,29 @@ module.exports={
                 issuer : "yourdomain@domain.com"
             }
     
-            const token = await jwt.sign(payload, secret, options)
-            return {token};
+            const accessToken = await jwt.sign(payload, secret, options)
+            return {accessToken};
         }catch(err){
             console.error(err);
-            return {err}
+            return {accessError : err}
+        }
+    },
+    signInRefreshToken : async (userId)=>{
+        try{
+            const payload = {id : userId}
+            const secret = process.env.REFRESH_TOKEN_KEY || "12345678"
+            const options = {
+                expiresIn : "1y",
+                issuer : "yourdomain@domain.com"
+            }
+
+            const refreshToken = await jwt.sign(payload, secret, options)
+            await redisClient.set(String(userId), refreshToken);
+            await redisClient.expire(String(userId), 365 * 24 *60 * 60) 
+
+            return {refreshToken};
+        }catch(err){
+            return {refreshError: err};
         }
     },
     verifyAccessToken: async (req,res, next)=>{
@@ -39,6 +58,23 @@ module.exports={
                 next(createHttpError.Unauthorized(err.message))
             else
                 next(err)
+        }
+    },
+    verifyRefreshToken: async ( refreshToken )=>{
+        try{
+            // It will throw error if token is not valid(i.e. miss match).
+            const payload = await jwt.verify(refreshToken, process.env.REFRESH_TOKEN_KEY)
+            const foundUserId = payload.id     
+            //Get the token from redis for this client. If token doesn't match then
+            //throw error.
+            const result = await redisClient.get(foundUserId)
+            if(result===refreshToken)
+                return {userId : foundUserId}
+            
+            throw createHttpError.Unauthorized();    
+            
+        }catch(err){
+            return {error: err}
         }
     }
 }

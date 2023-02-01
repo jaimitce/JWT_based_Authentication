@@ -2,12 +2,13 @@ const express = require("express")
 const app = express()
 const createError = require("http-errors")
 const dotenv = require('dotenv');
+//read all config from .env file.
+dotenv.config();
 const authRouter = require('./Routes/auth.routes')
 const {verifyAccessToken} = require('./helper/jwt_helper')
 
 const morgan = require('morgan')
-//read all config from .env file.
-dotenv.config();
+
 
 // Morgan is used to log. Here we are adding in middleware.
 // so all the incomming request will be logged.
@@ -17,6 +18,7 @@ app.use(morgan());
 app.use(express.json());
 
 const mongodb = require("./database/mongodb")
+const {redisClient} = require("./database/redisdb")
 
 app.use('/auth', authRouter);
 
